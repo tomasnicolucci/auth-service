@@ -3,13 +3,14 @@ import {
   createUser,
   findUserByEmail,
 } from "../users/user.repository.js";
+import { AppError } from "../../errors/AppError.js";
 import type { RegisterInput } from "./auth.schemas.js";
 
 export const registerUser = async (input: RegisterInput) => {
   const existingUser = await findUserByEmail(input.email);
 
   if (existingUser) {
-    throw new Error("EMAIL_ALREADY_EXISTS");
+    throw new AppError("Email already registered", 409);
   }
 
   const passwordHash = await argon2.hash(input.password, {

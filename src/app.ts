@@ -1,6 +1,7 @@
 import express from "express";
 import { db } from "./config/database.js";
 import authRouter from "./modules/auth/auth.routes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -29,5 +30,7 @@ app.get("/ready", async (_req, res) => {
 });
 
 app.use("/auth", authRouter);
+
+app.use(errorHandler);
 
 export default app;
