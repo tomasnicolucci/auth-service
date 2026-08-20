@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, RegisterInput, } from "./auth.schemas.js";
-import { loginUser, registerUser, } from "./auth.service.js";
+import type { LoginInput, RefreshInput, RegisterInput, } from "./auth.schemas.js";
+import { loginUser, refreshAccessToken, registerUser, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -23,4 +23,17 @@ export const login = async (
   });
 
   return res.status(200).json(result);
+};
+
+export const refresh = async (
+  req: Request<{}, {}, RefreshInput>,
+  res: Response
+) => {
+  const tokens = await refreshAccessToken(
+    req.body
+  );
+
+  return res.status(200).json({
+    tokens,
+  });
 };
