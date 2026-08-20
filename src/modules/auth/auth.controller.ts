@@ -37,3 +37,12 @@ export const refresh = async (
     tokens,
   });
 };
+
+export const me = async (
+  req: Request,
+  res: Response
+) => {
+  return res.status(200).json({
+    user: req.auth,
+  });
+};
