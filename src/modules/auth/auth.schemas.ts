@@ -41,3 +41,9 @@ export const logoutSchema = z.object({
 });
 
 export type LogoutInput = z.infer<typeof logoutSchema>;
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

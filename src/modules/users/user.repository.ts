@@ -1,5 +1,6 @@
 import { db } from "../../config/database.js";
 import type { User } from "./user.types.js";
+import type { PoolClient } from "pg";
 
 interface CreateUserData {
   email: string;
@@ -79,4 +80,20 @@ export const createUser = async (
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+};
+
+export const markUserEmailAsVerified = async (
+  client: PoolClient,
+  userId: string
+): Promise<void> => {
+  await client.query(
+    `
+      UPDATE users
+      SET
+        email_verified = true,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `,
+    [userId]
+  );
 };

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, } from "./auth.schemas.js";
-import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, } from "./auth.service.js";
+import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, } from "./auth.schemas.js";
+import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -88,6 +88,15 @@ export const deleteSession = async (
     req.auth!.userId,
     req.params.sessionId
   );
+
+  return res.status(204).send();
+};
+
+export const verifyEmail = async (
+  req: Request<{}, {}, VerifyEmailInput>,
+  res: Response
+) => {
+  await verifyUserEmail(req.body);
 
   return res.status(204).send();
 };

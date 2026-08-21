@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import {
   createUser,
   findUserByEmail,
+  markUserEmailAsVerified,
 } from "../users/user.repository.js";
 import { AppError } from "../../errors/AppError.js";
 import { createHash } from "node:crypto";
@@ -18,9 +19,10 @@ import type {
   LogoutInput,
   RefreshInput,
   RegisterInput,
+  VerifyEmailInput,
 } from "./auth.schemas.js";
 import { db } from "../../config/database.js";
-import { createEmailVerificationToken } from "../email-verification/email-verification.repository.js";
+import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerificationTokenAsUsed, } from "../email-verification/email-verification.repository.js";
 import { sendVerificationEmail } from "../../services/mail.service.js";
 
 export const registerUser = async (input: RegisterInput) => {
@@ -300,4 +302,77 @@ export const revokeUserSession = async (
     userId,
     sessionId
   );
+};
+
+export const verifyUserEmail = async (
+  input: VerifyEmailInput
+): Promise<void> => {
+  const tokenHash = hashToken(input.token);
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const verificationToken =
+      await findVerificationTokenForUpdate(
+        client,
+        tokenHash
+      );
+
+    if (!verificationToken) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Invalid verification token",
+        400
+      );
+    }
+
+    if (verificationToken.usedAt) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Verification token already used",
+        400
+      );
+    }
+
+    if (
+      verificationToken.expiresAt <= new Date()
+    ) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Verification token expired",
+        400
+      );
+    }
+
+    await markUserEmailAsVerified(
+      client,
+      verificationToken.userId
+    );
+
+    await markVerificationTokenAsUsed(
+      client,
+      verificationToken.id
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Preserve original error.
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
 };

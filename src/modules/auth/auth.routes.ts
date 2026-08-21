@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { deleteSession, getSessions, login, logout, logoutAll, me, refresh, register } from "./auth.controller.js";
+import { deleteSession, getSessions, login, logout, logoutAll, me, refresh, register, verifyEmail } from "./auth.controller.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./auth.schemas.js";
+import { loginSchema, logoutSchema, refreshSchema, registerSchema, verifyEmailSchema } from "./auth.schemas.js";
 import { authenticate } from "../../middleware/authenticate.js";
 
 const authRouter = Router();
@@ -22,5 +22,7 @@ authRouter.post("/logout-all", asyncHandler(authenticate), asyncHandler(logoutAl
 authRouter.get("/sessions", asyncHandler(authenticate), asyncHandler(getSessions));
 
 authRouter.delete("/sessions/:sessionId", asyncHandler(authenticate), asyncHandler(deleteSession));
+
+authRouter.post("/verify-email", validate(verifyEmailSchema), asyncHandler(verifyEmail));
 
 export default authRouter;
