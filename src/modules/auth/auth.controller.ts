@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, RefreshInput, RegisterInput, } from "./auth.schemas.js";
-import { loginUser, refreshAccessToken, registerUser, } from "./auth.service.js";
+import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, } from "./auth.schemas.js";
+import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -45,4 +45,49 @@ export const me = async (
   return res.status(200).json({
     user: req.auth,
   });
+};
+
+export const logout = async (
+  req: Request<{}, {}, LogoutInput>,
+  res: Response
+) => {
+  await logoutUser(req.body);
+
+  return res.status(204).send();
+};
+
+export const logoutAll = async (
+  req: Request,
+  res: Response
+) => {
+  await logoutAllUserSessions(
+    req.auth!.userId
+  );
+
+  return res.status(204).send();
+};
+
+export const getSessions = async (
+  req: Request,
+  res: Response
+) => {
+  const sessions = await getUserSessions(
+    req.auth!.userId
+  );
+
+  return res.status(200).json({
+    sessions,
+  });
+};
+
+export const deleteSession = async (
+  req: Request<{ sessionId: string }>,
+  res: Response
+) => {
+  await revokeUserSession(
+    req.auth!.userId,
+    req.params.sessionId
+  );
+
+  return res.status(204).send();
 };

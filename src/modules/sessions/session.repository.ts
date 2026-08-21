@@ -211,3 +211,84 @@ export const revokeSession = async (
     [sessionId]
   );
 };
+
+export interface UserSession {
+  id: string;
+  userAgent: string | null;
+  createdAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+}
+
+export const revokeSessionByRefreshTokenHash = async (
+  refreshTokenHash: string
+): Promise<void> => {
+  await db.query(
+    `
+      UPDATE sessions
+      SET revoked_at = CURRENT_TIMESTAMP
+      WHERE refresh_token_hash = $1
+        AND revoked_at IS NULL
+    `,
+    [refreshTokenHash]
+  );
+};
+
+export const revokeAllUserSessions = async (
+  userId: string
+): Promise<void> => {
+  await db.query(
+    `
+      UPDATE sessions
+      SET revoked_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND revoked_at IS NULL
+    `,
+    [userId]
+  );
+};
+
+export const findActiveSessionsByUserId = async (
+  userId: string
+): Promise<UserSession[]> => {
+  const result = await db.query(
+    `
+      SELECT
+        id,
+        user_agent,
+        created_at,
+        last_used_at,
+        expires_at
+      FROM sessions
+      WHERE user_id = $1
+        AND revoked_at IS NULL
+        AND expires_at > CURRENT_TIMESTAMP
+      ORDER BY last_used_at DESC
+    `,
+    [userId]
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    userAgent: row.user_agent,
+    createdAt: row.created_at,
+    lastUsedAt: row.last_used_at,
+    expiresAt: row.expires_at,
+  }));
+};
+
+export const revokeUserSessionById = async (
+  userId: string,
+  sessionId: string
+): Promise<void> => {
+  await db.query(
+    `
+      UPDATE sessions
+      SET revoked_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+        AND user_id = $2
+        AND revoked_at IS NULL
+    `,
+    [sessionId, userId]
+  );
+};

@@ -5,7 +5,7 @@ import {
 } from "../users/user.repository.js";
 import { AppError } from "../../errors/AppError.js";
 import { createHash } from "node:crypto";
-import { createSession, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, revokeSession, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
+import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, revokeAllUserSessions, revokeSession, revokeSessionByRefreshTokenHash, revokeUserSessionById, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -14,6 +14,7 @@ import {
 import { env } from "../../config/env.js";
 import type {
   LoginInput,
+  LogoutInput,
   RefreshInput,
   RegisterInput,
 } from "./auth.schemas.js";
@@ -240,4 +241,38 @@ export const refreshAccessToken = async (
   } finally {
     client.release();
   }
+};
+
+export const logoutUser = async (
+  input: LogoutInput
+): Promise<void> => {
+  const refreshTokenHash = hashToken(
+    input.refreshToken
+  );
+
+  await revokeSessionByRefreshTokenHash(
+    refreshTokenHash
+  );
+};
+
+export const logoutAllUserSessions = async (
+  userId: string
+): Promise<void> => {
+  await revokeAllUserSessions(userId);
+};
+
+export const getUserSessions = async (
+  userId: string
+) => {
+  return findActiveSessionsByUserId(userId);
+};
+
+export const revokeUserSession = async (
+  userId: string,
+  sessionId: string
+): Promise<void> => {
+  await revokeUserSessionById(
+    userId,
+    sessionId
+  );
 };

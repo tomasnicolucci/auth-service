@@ -5,14 +5,21 @@ import type {
   RequestHandler,
 } from "express";
 
-export const asyncHandler = (
-  handler: RequestHandler
-): RequestHandler => {
-  return (
-    req: Request,
-    res: Response,
+export const asyncHandler = <
+  P = any,
+  ResBody = any,
+  ReqBody = any,
+  ReqQuery = any
+>(
+  handler: (
+    req: Request<P, ResBody, ReqBody, ReqQuery>,
+    res: Response<ResBody>,
     next: NextFunction
-  ) => {
-    Promise.resolve(handler(req, res, next)).catch(next);
+  ) => Promise<unknown>
+): RequestHandler<P, ResBody, ReqBody, ReqQuery> => {
+  return (req, res, next) => {
+    Promise.resolve(
+      handler(req, res, next)
+    ).catch(next);
   };
 };
