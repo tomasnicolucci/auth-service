@@ -118,3 +118,7 @@ export const hashToken = (token: string): string => {
     .update(token)
     .digest("hex");
 };
+
+export const generateSecureToken = (): string => {
+  return randomBytes(32).toString("base64url");
+};

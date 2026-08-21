@@ -9,6 +9,7 @@ import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenFor
 import {
   generateAccessToken,
   generateRefreshToken,
+  generateSecureToken,
   hashToken,
 } from "../../security/tokens.js";
 import { env } from "../../config/env.js";
@@ -19,6 +20,8 @@ import type {
   RegisterInput,
 } from "./auth.schemas.js";
 import { db } from "../../config/database.js";
+import { createEmailVerificationToken } from "../email-verification/email-verification.repository.js";
+import { sendVerificationEmail } from "../../services/mail.service.js";
 
 export const registerUser = async (input: RegisterInput) => {
   const existingUser = await findUserByEmail(input.email);
@@ -34,6 +37,28 @@ export const registerUser = async (input: RegisterInput) => {
   const user = await createUser({
     email: input.email,
     passwordHash,
+  });
+
+  const verificationToken = generateSecureToken();
+
+  const verificationTokenHash = hashToken(
+    verificationToken
+  );
+
+  const verificationExpiresAt = new Date(
+    Date.now() +
+      env.emailVerificationTtlMinutes * 60 * 1000
+  );
+
+  await createEmailVerificationToken({
+    userId: user.id,
+    tokenHash: verificationTokenHash,
+    expiresAt: verificationExpiresAt,
+  });
+
+  await sendVerificationEmail({
+    email: user.email,
+    token: verificationToken,
   });
 
   return {
