@@ -47,3 +47,12 @@ export const verifyEmailSchema = z.object({
 });
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+export const resendVerificationSchema = z.object({
+  email: z
+    .string()
+    .email()
+    .transform((email) => email.toLowerCase()),
+});
+
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

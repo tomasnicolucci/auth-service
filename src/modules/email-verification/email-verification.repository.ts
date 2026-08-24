@@ -95,3 +95,17 @@ export const markVerificationTokenAsUsed = async (
     [tokenId]
   );
 };
+
+export const invalidateActiveVerificationTokens = async (
+  userId: string
+): Promise<void> => {
+  await db.query(
+    `
+      UPDATE email_verification_tokens
+      SET used_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND used_at IS NULL
+    `,
+    [userId]
+  );
+};

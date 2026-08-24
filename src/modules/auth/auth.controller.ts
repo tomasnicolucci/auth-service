@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, } from "./auth.schemas.js";
-import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, } from "./auth.service.js";
+import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, } from "./auth.schemas.js";
+import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -99,4 +99,16 @@ export const verifyEmail = async (
   await verifyUserEmail(req.body);
 
   return res.status(204).send();
+};
+
+export const resendVerification = async (
+  req: Request<{}, {}, ResendVerificationInput>,
+  res: Response
+) => {
+  await resendVerificationEmail(req.body);
+
+  return res.status(202).json({
+    message:
+      "If the account exists and requires verification, a verification email has been sent.",
+  });
 };

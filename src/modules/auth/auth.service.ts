@@ -20,48 +20,40 @@ import type {
   RefreshInput,
   RegisterInput,
   VerifyEmailInput,
+  ResendVerificationInput,
 } from "./auth.schemas.js";
 import { db } from "../../config/database.js";
-import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerificationTokenAsUsed, } from "../email-verification/email-verification.repository.js";
+import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerificationTokenAsUsed, invalidateActiveVerificationTokens} from "../email-verification/email-verification.repository.js";
 import { sendVerificationEmail } from "../../services/mail.service.js";
 
-export const registerUser = async (input: RegisterInput) => {
+export const registerUser = async (
+  input: RegisterInput
+) => {
   const existingUser = await findUserByEmail(input.email);
 
   if (existingUser) {
-    throw new AppError("Email already registered", 409);
+    throw new AppError(
+      "Email already registered",
+      409
+    );
   }
 
-  const passwordHash = await argon2.hash(input.password, {
-    type: argon2.argon2id,
-  });
+  const passwordHash = await argon2.hash(
+    input.password,
+    {
+      type: argon2.argon2id,
+    }
+  );
 
   const user = await createUser({
     email: input.email,
     passwordHash,
   });
 
-  const verificationToken = generateSecureToken();
-
-  const verificationTokenHash = hashToken(
-    verificationToken
+  await issueEmailVerificationToken(
+    user.id,
+    user.email
   );
-
-  const verificationExpiresAt = new Date(
-    Date.now() +
-      env.emailVerificationTtlMinutes * 60 * 1000
-  );
-
-  await createEmailVerificationToken({
-    userId: user.id,
-    tokenHash: verificationTokenHash,
-    expiresAt: verificationExpiresAt,
-  });
-
-  await sendVerificationEmail({
-    email: user.email,
-    token: verificationToken,
-  });
 
   return {
     id: user.id,
@@ -375,4 +367,54 @@ export const verifyUserEmail = async (
   } finally {
     client.release();
   }
+};
+
+const issueEmailVerificationToken = async (
+  userId: string,
+  email: string
+): Promise<void> => {
+  const verificationToken = generateSecureToken();
+
+  const verificationTokenHash = hashToken(
+    verificationToken
+  );
+
+  const expiresAt = new Date(
+    Date.now() +
+      env.emailVerificationTtlMinutes * 60 * 1000
+  );
+
+  await createEmailVerificationToken({
+    userId,
+    tokenHash: verificationTokenHash,
+    expiresAt,
+  });
+
+  await sendVerificationEmail({
+    email,
+    token: verificationToken,
+  });
+};
+
+export const resendVerificationEmail = async (
+  input: ResendVerificationInput
+): Promise<void> => {
+  const user = await findUserByEmail(input.email);
+
+  if (!user) {
+    return;
+  }
+
+  if (user.emailVerified) {
+    return;
+  }
+
+  await invalidateActiveVerificationTokens(
+    user.id
+  );
+
+  await issueEmailVerificationToken(
+    user.id,
+    user.email
+  );
 };
