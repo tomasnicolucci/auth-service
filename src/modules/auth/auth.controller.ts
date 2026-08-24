@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, } from "./auth.schemas.js";
-import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, } from "./auth.service.js";
+import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, ForgotPasswordInput, ResetPasswordInput, } from "./auth.schemas.js";
+import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, forgotPassword, resetPassword, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -111,4 +111,25 @@ export const resendVerification = async (
     message:
       "If the account exists and requires verification, a verification email has been sent.",
   });
+};
+
+export const forgotPasswordController = async (
+  req: Request<{}, {}, ForgotPasswordInput>,
+  res: Response
+) => {
+  await forgotPassword(req.body);
+
+  return res.status(202).json({
+    message:
+      "If the account exists, a password reset email has been sent.",
+  });
+};
+
+export const resetPasswordController = async (
+  req: Request<{}, {}, ResetPasswordInput>,
+  res: Response
+) => {
+  await resetPassword(req.body);
+
+  return res.status(204).send();
 };

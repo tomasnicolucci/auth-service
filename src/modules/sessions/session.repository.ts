@@ -292,3 +292,18 @@ export const revokeUserSessionById = async (
     [sessionId, userId]
   );
 };
+
+export const revokeAllUserSessionsWithClient = async (
+  client: PoolClient,
+  userId: string
+): Promise<void> => {
+  await client.query(
+    `
+      UPDATE sessions
+      SET revoked_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND revoked_at IS NULL
+    `,
+    [userId]
+  );
+};

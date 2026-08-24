@@ -22,3 +22,19 @@ export const sendVerificationEmail = async (
     text: `Your email verification token is: ${data.token}`,
   });
 };
+
+interface SendPasswordResetEmailData {
+  email: string;
+  token: string;
+}
+
+export const sendPasswordResetEmail = async (
+  data: SendPasswordResetEmailData
+): Promise<void> => {
+  await transporter.sendMail({
+    from: env.smtpFrom,
+    to: data.email,
+    subject: "Reset your password",
+    text: `Your password reset token is: ${data.token}`,
+  });
+};

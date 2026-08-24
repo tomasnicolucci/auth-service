@@ -2,11 +2,13 @@ import argon2 from "argon2";
 import {
   createUser,
   findUserByEmail,
+  findUserByIdForUpdate,
   markUserEmailAsVerified,
+  updateUserPassword,
 } from "../users/user.repository.js";
 import { AppError } from "../../errors/AppError.js";
 import { createHash } from "node:crypto";
-import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, revokeAllUserSessions, revokeSession, revokeSessionByRefreshTokenHash, revokeUserSessionById, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
+import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, revokeAllUserSessions, revokeAllUserSessionsWithClient, revokeSession, revokeSessionByRefreshTokenHash, revokeUserSessionById, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -21,10 +23,14 @@ import type {
   RegisterInput,
   VerifyEmailInput,
   ResendVerificationInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
 } from "./auth.schemas.js";
 import { db } from "../../config/database.js";
 import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerificationTokenAsUsed, invalidateActiveVerificationTokens} from "../email-verification/email-verification.repository.js";
-import { sendVerificationEmail } from "../../services/mail.service.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../../services/mail.service.js";
+import { createPasswordResetToken, findPasswordResetTokenForUpdate, invalidateActivePasswordResetTokens, invalidateOtherPasswordResetTokens, markPasswordResetTokenAsUsed } from "../password-reset/password-reset.repository.js";
+import { addPasswordToHistory, findPasswordHistory } from "../password-history/password-history.repository.js";
 
 export const registerUser = async (
   input: RegisterInput
@@ -417,4 +423,193 @@ export const resendVerificationEmail = async (
     user.id,
     user.email
   );
+};
+
+const issuePasswordResetToken = async (
+  userId: string,
+  email: string
+): Promise<void> => {
+  const resetToken = generateSecureToken();
+
+  const resetTokenHash = hashToken(resetToken);
+
+  const expiresAt = new Date(
+    Date.now() +
+      env.passwordResetTtlMinutes * 60 * 1000
+  );
+
+  await createPasswordResetToken({
+    userId,
+    tokenHash: resetTokenHash,
+    expiresAt,
+  });
+
+  await sendPasswordResetEmail({
+    email,
+    token: resetToken,
+  });
+};
+
+export const forgotPassword = async (
+  input: ForgotPasswordInput
+): Promise<void> => {
+  const user = await findUserByEmail(input.email);
+
+  if (!user) {
+    return;
+  }
+
+  await invalidateActivePasswordResetTokens(
+    user.id
+  );
+
+  await issuePasswordResetToken(
+    user.id,
+    user.email
+  );
+};
+
+export const resetPassword = async (
+  input: ResetPasswordInput
+): Promise<void> => {
+  const tokenHash = hashToken(input.token);
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const resetToken =
+      await findPasswordResetTokenForUpdate(
+        client,
+        tokenHash
+      );
+
+    if (!resetToken) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Invalid password reset token",
+        400
+      );
+    }
+
+    if (resetToken.used_at) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Password reset token already used",
+        400
+      );
+    }
+
+    if (resetToken.expires_at <= new Date()) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Password reset token expired",
+        400
+      );
+    }
+
+    const user = await findUserByIdForUpdate(
+      client,
+      resetToken.user_id
+    );
+
+    if (!user) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Invalid password reset token",
+        400
+      );
+    }
+
+    const sameAsCurrent = await argon2.verify(
+      user.passwordHash,
+      input.password
+    );
+
+    if (sameAsCurrent) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Password has already been used",
+        400
+      );
+    }
+
+    const passwordHistory =
+      await findPasswordHistory(
+        client,
+        user.id
+      );
+
+    for (const previousHash of passwordHistory) {
+      const reused = await argon2.verify(
+        previousHash,
+        input.password
+      );
+
+      if (reused) {
+        await client.query("ROLLBACK");
+
+        throw new AppError(
+          "Password has already been used",
+          400
+        );
+      }
+    }
+
+    const newPasswordHash = await argon2.hash(
+      input.password,
+      {
+        type: argon2.argon2id,
+      }
+    );
+
+    await addPasswordToHistory(
+      client,
+      user.id,
+      user.passwordHash
+    );
+
+    await updateUserPassword(
+      client,
+      user.id,
+      newPasswordHash
+    );
+
+    await markPasswordResetTokenAsUsed(
+      client,
+      resetToken.id
+    );
+
+    await invalidateOtherPasswordResetTokens(
+      client,
+      user.id
+    );
+
+    await revokeAllUserSessionsWithClient(
+      client,
+      user.id
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Preserve original error.
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
 };

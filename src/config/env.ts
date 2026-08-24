@@ -13,6 +13,7 @@ const smtpHost = process.env.SMTP_HOST;
 const smtpPort = Number(process.env.SMTP_PORT);
 const smtpFrom = process.env.SMTP_FROM;
 const emailVerificationTtlMinutes = Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES);
+const passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_TTL_MINUTES);
 
 if (!port) {
   throw new Error("PORT environment variable is required");
@@ -70,6 +71,12 @@ if (!emailVerificationTtlMinutes) {
   );
 }
 
+if (!passwordResetTtlMinutes) {
+  throw new Error(
+    "PASSWORD_RESET_TTL_MINUTES environment variable is required"
+  );
+}
+
 export const env = {
   port,
   databaseUrl,
@@ -84,4 +91,5 @@ export const env = {
   smtpPort,
   smtpFrom,
   emailVerificationTtlMinutes,
+  passwordResetTtlMinutes,
 };
