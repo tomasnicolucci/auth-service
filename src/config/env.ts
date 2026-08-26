@@ -14,6 +14,8 @@ const smtpPort = Number(process.env.SMTP_PORT);
 const smtpFrom = process.env.SMTP_FROM;
 const emailVerificationTtlMinutes = Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES);
 const passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_TTL_MINUTES);
+const corsOrigin = process.env.CORS_ORIGIN;
+const trustProxy = process.env.TRUST_PROXY === "true";
 
 if (!port) {
   throw new Error("PORT environment variable is required");
@@ -77,6 +79,12 @@ if (!passwordResetTtlMinutes) {
   );
 }
 
+if (!corsOrigin) {
+  throw new Error(
+    "CORS_ORIGIN environment variable is required"
+  );
+}
+
 export const env = {
   port,
   databaseUrl,
@@ -92,4 +100,6 @@ export const env = {
   smtpFrom,
   emailVerificationTtlMinutes,
   passwordResetTtlMinutes,
+  corsOrigin,
+  trustProxy,
 };
