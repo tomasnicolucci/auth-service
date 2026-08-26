@@ -4,12 +4,14 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { changePasswordSchema, forgotPasswordSchema, loginSchema, logoutSchema, refreshSchema, registerSchema, resendVerificationSchema, resetPasswordSchema, verifyEmailSchema } from "./auth.schemas.js";
 import { authenticate } from "../../middleware/authenticate.js";
+import { rateLimit } from "../../middleware/rateLimit.js";
+import { rateLimits } from "../../config/rateLimits.js";
 
 const authRouter = Router();
 
-authRouter.post("/register", validate(registerSchema), asyncHandler(register));
+authRouter.post("/register", rateLimit(rateLimits.register), validate(registerSchema), asyncHandler(register));
 
-authRouter.post("/login", validate(loginSchema), asyncHandler(login));
+authRouter.post("/login", rateLimit(rateLimits.login), validate(loginSchema), asyncHandler(login));
 
 authRouter.post("/refresh", validate(refreshSchema), asyncHandler(refresh));
 
@@ -19,9 +21,9 @@ authRouter.post("/logout-all", asyncHandler(authenticate), asyncHandler(logoutAl
 
 authRouter.post("/verify-email", validate(verifyEmailSchema), asyncHandler(verifyEmail));
 
-authRouter.post("/resend-verification", validate(resendVerificationSchema), asyncHandler(resendVerification));
+authRouter.post("/resend-verification", rateLimit(rateLimits.resendVerification), validate(resendVerificationSchema), asyncHandler(resendVerification));
 
-authRouter.post("/forgot-password", validate(forgotPasswordSchema), asyncHandler(forgotPasswordController));
+authRouter.post("/forgot-password", rateLimit(rateLimits.forgotPassword), validate(forgotPasswordSchema), asyncHandler(forgotPasswordController));
 
 authRouter.post("/reset-password", validate(resetPasswordSchema), asyncHandler(resetPasswordController));
 

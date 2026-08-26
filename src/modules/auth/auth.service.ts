@@ -32,6 +32,7 @@ import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerif
 import { sendPasswordResetEmail, sendVerificationEmail } from "../../services/mail.service.js";
 import { createPasswordResetToken, findPasswordResetTokenForUpdate, invalidateActivePasswordResetTokens, invalidateOtherPasswordResetTokens, markPasswordResetTokenAsUsed } from "../password-reset/password-reset.repository.js";
 import { addPasswordToHistory, findPasswordHistory } from "../password-history/password-history.repository.js";
+import { checkLoginAttempts, recordFailedLogin, clearFailedLogins } from "../../security/loginAttempts.js";
 
 export const registerUser = async (
   input: RegisterInput
@@ -80,10 +81,27 @@ export const loginUser = async (
   input: LoginInput,
   metadata: LoginMetadata
 ) => {
-  const user = await findUserByEmail(input.email);
+  const ip = metadata.ip ?? "unknown";
+
+  await checkLoginAttempts(
+    input.email,
+    ip
+  );
+
+  const user = await findUserByEmail(
+    input.email
+  );
 
   if (!user) {
-    throw new AppError("Invalid email or password", 401);
+    await recordFailedLogin(
+      input.email,
+      ip
+    );
+
+    throw new AppError(
+      "Invalid email or password",
+      401
+    );
   }
 
   const passwordMatches = await argon2.verify(
@@ -92,8 +110,29 @@ export const loginUser = async (
   );
 
   if (!passwordMatches) {
-    throw new AppError("Invalid email or password", 401);
+    await recordFailedLogin(
+      input.email,
+      ip
+    );
+
+    throw new AppError(
+      "Invalid email or password",
+      401
+    );
   }
+
+  await clearFailedLogins(
+    input.email,
+    ip
+  );
+
+  // if (!user) {
+  //   throw new AppError("Invalid email or password", 401);
+  // }
+
+  // if (!passwordMatches) {
+  //   throw new AppError("Invalid email or password", 401);
+  // }
 
   const accessToken = await generateAccessToken({
     userId: user.id,
