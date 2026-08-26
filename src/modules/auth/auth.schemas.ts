@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { passwordSchema } from "../../schemas/password.schema.js";
 
 export const registerSchema = z.object({
   email: z
@@ -6,10 +7,7 @@ export const registerSchema = z.object({
     .email()
     .transform((email) => email.toLowerCase()),
 
-  password: z
-    .string()
-    .min(8)
-    .max(128),
+  password: passwordSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -69,10 +67,7 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
 
-  password: z
-    .string()
-    .min(8)
-    .max(128),
+  password: passwordSchema,
 });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
@@ -83,10 +78,7 @@ export const changePasswordSchema = z.object({
     .min(1)
     .max(128),
 
-  newPassword: z
-    .string()
-    .min(8)
-    .max(128),
+  newPassword: passwordSchema,
 
   refreshToken: z
     .string()
