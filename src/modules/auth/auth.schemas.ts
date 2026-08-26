@@ -76,3 +76,21 @@ export const resetPasswordSchema = z.object({
 });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1)
+    .max(128),
+
+  newPassword: z
+    .string()
+    .min(8)
+    .max(128),
+
+  refreshToken: z
+    .string()
+    .min(1),
+});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

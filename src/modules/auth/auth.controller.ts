@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, ForgotPasswordInput, ResetPasswordInput, } from "./auth.schemas.js";
-import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, forgotPassword, resetPassword, } from "./auth.service.js";
+import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput, } from "./auth.schemas.js";
+import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, forgotPassword, resetPassword, changePassword, } from "./auth.service.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
@@ -130,6 +130,18 @@ export const resetPasswordController = async (
   res: Response
 ) => {
   await resetPassword(req.body);
+
+  return res.status(204).send();
+};
+
+export const changePasswordController = async (
+  req: Request<{}, {}, ChangePasswordInput>,
+  res: Response
+) => {
+  await changePassword(
+    req.auth!.userId,
+    req.body
+  );
 
   return res.status(204).send();
 };

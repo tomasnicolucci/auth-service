@@ -307,3 +307,48 @@ export const revokeAllUserSessionsWithClient = async (
     [userId]
   );
 };
+
+export const findSessionByRefreshTokenHash = async (
+  refreshTokenHash: string
+): Promise<{ id: string; userId: string } | null> => {
+  const result = await db.query(
+    `
+      SELECT
+        id,
+        user_id
+      FROM sessions
+      WHERE refresh_token_hash = $1
+        AND revoked_at IS NULL
+        AND expires_at > CURRENT_TIMESTAMP
+    `,
+    [refreshTokenHash]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+  };
+};
+
+export const revokeOtherUserSessionsWithClient = async (
+  client: PoolClient,
+  userId: string,
+  currentSessionId: string
+): Promise<void> => {
+  await client.query(
+    `
+      UPDATE sessions
+      SET revoked_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND id <> $2
+        AND revoked_at IS NULL
+    `,
+    [userId, currentSessionId]
+  );
+};

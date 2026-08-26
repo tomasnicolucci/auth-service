@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { deleteSession, forgotPasswordController, getSessions, login, logout, logoutAll, me, refresh, register, resendVerification, resetPasswordController, verifyEmail } from "./auth.controller.js";
+import { changePasswordController, deleteSession, forgotPasswordController, getSessions, login, logout, logoutAll, me, refresh, register, resendVerification, resetPasswordController, verifyEmail } from "./auth.controller.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { forgotPasswordSchema, loginSchema, logoutSchema, refreshSchema, registerSchema, resendVerificationSchema, resetPasswordSchema, verifyEmailSchema } from "./auth.schemas.js";
+import { changePasswordSchema, forgotPasswordSchema, loginSchema, logoutSchema, refreshSchema, registerSchema, resendVerificationSchema, resetPasswordSchema, verifyEmailSchema } from "./auth.schemas.js";
 import { authenticate } from "../../middleware/authenticate.js";
 
 const authRouter = Router();
@@ -24,6 +24,8 @@ authRouter.post("/resend-verification", validate(resendVerificationSchema), asyn
 authRouter.post("/forgot-password", validate(forgotPasswordSchema), asyncHandler(forgotPasswordController));
 
 authRouter.post("/reset-password", validate(resetPasswordSchema), asyncHandler(resetPasswordController));
+
+authRouter.post("/change-password", asyncHandler(authenticate), validate(changePasswordSchema), asyncHandler(changePasswordController));
 
 authRouter.get("/sessions", asyncHandler(authenticate), asyncHandler(getSessions));
 

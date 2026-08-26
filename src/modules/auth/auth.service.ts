@@ -8,7 +8,7 @@ import {
 } from "../users/user.repository.js";
 import { AppError } from "../../errors/AppError.js";
 import { createHash } from "node:crypto";
-import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, revokeAllUserSessions, revokeAllUserSessionsWithClient, revokeSession, revokeSessionByRefreshTokenHash, revokeUserSessionById, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
+import { createSession, findActiveSessionsByUserId, findSessionByCurrentTokenForUpdate, findSessionByHistoricalTokenForUpdate, findSessionByRefreshTokenHash, revokeAllUserSessions, revokeAllUserSessionsWithClient, revokeOtherUserSessionsWithClient, revokeSession, revokeSessionByRefreshTokenHash, revokeUserSessionById, saveRefreshTokenHistory, updateSessionRefreshToken } from "../sessions/session.repository.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -25,6 +25,7 @@ import type {
   ResendVerificationInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  ChangePasswordInput,
 } from "./auth.schemas.js";
 import { db } from "../../config/database.js";
 import { createEmailVerificationToken, findVerificationTokenForUpdate, markVerificationTokenAsUsed, invalidateActiveVerificationTokens} from "../email-verification/email-verification.repository.js";
@@ -594,6 +595,142 @@ export const resetPassword = async (
     await revokeAllUserSessionsWithClient(
       client,
       user.id
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Preserve original error.
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const changePassword = async (
+  userId: string,
+  input: ChangePasswordInput
+): Promise<void> => {
+  const refreshTokenHash = hashToken(
+    input.refreshToken
+  );
+
+  const currentSession =
+    await findSessionByRefreshTokenHash(
+      refreshTokenHash
+    );
+
+  if (
+    !currentSession ||
+    currentSession.userId !== userId
+  ) {
+    throw new AppError(
+      "Invalid session",
+      401
+    );
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const user = await findUserByIdForUpdate(
+      client,
+      userId
+    );
+
+    if (!user) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "User not found",
+        404
+      );
+    }
+
+    const currentPasswordMatches =
+      await argon2.verify(
+        user.passwordHash,
+        input.currentPassword
+      );
+
+    if (!currentPasswordMatches) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Current password is incorrect",
+        401
+      );
+    }
+
+    const sameAsCurrent = await argon2.verify(
+      user.passwordHash,
+      input.newPassword
+    );
+
+    if (sameAsCurrent) {
+      await client.query("ROLLBACK");
+
+      throw new AppError(
+        "Password has already been used",
+        400
+      );
+    }
+
+    const passwordHistory =
+      await findPasswordHistory(
+        client,
+        user.id
+      );
+
+    for (const previousHash of passwordHistory) {
+      const reused = await argon2.verify(
+        previousHash,
+        input.newPassword
+      );
+
+      if (reused) {
+        await client.query("ROLLBACK");
+
+        throw new AppError(
+          "Password has already been used",
+          400
+        );
+      }
+    }
+
+    const newPasswordHash = await argon2.hash(
+      input.newPassword,
+      {
+        type: argon2.argon2id,
+      }
+    );
+
+    await addPasswordToHistory(
+      client,
+      user.id,
+      user.passwordHash
+    );
+
+    await updateUserPassword(
+      client,
+      user.id,
+      newPasswordHash
+    );
+
+    await revokeOtherUserSessionsWithClient(
+      client,
+      user.id,
+      currentSession.id
     );
 
     await client.query("COMMIT");
