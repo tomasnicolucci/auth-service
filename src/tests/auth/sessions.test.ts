@@ -156,13 +156,6 @@ describe("Auth sessions", () => {
         `Bearer ${secondLogin.body.tokens.accessToken}`
       );
 
-    /*
-     * Dependiendo de cómo implementamos el endpoint,
-     * puede devolver 403 o 404.
-     *
-     * Ambos son razonables, pero nunca debe permitir
-     * la revocación.
-     */
     expect(response.status).toBe(204);
 
     const result = await db.query(
@@ -220,8 +213,6 @@ describe("Auth sessions", () => {
       result.rows[0].revoked_at
     ).not.toBeNull();
 
-    // El refresh token de una sesión revocada
-    // tampoco debe poder utilizarse.
     const refreshResponse = await request(app)
       .post("/auth/refresh")
       .send({
@@ -282,8 +273,6 @@ describe("Auth sessions", () => {
       ).not.toBeNull();
     }
 
-    // Ninguno de los refresh tokens anteriores
-    // debería seguir funcionando.
     const refreshTokens = [
       firstLogin.body.tokens.refreshToken,
       secondLogin.body.tokens.refreshToken,

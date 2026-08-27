@@ -1,7 +1,7 @@
 export const rateLimits = {
   login: {
     keyPrefix: "login",
-    maxRequests: 5,
+    maxRequests: 10,
     windowSeconds: 15 * 60,
   },
 
