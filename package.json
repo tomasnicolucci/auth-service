@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "node --env-file=.env ./node_modules/node-pg-migrate/bin/node-pg-migrate --migration-file-language ts",
-    "migrate:create": "node --env-file=.env ./node_modules/node-pg-migrate/bin/node-pg-migrate create --migration-file-language ts"
+    "migrate:create": "node --env-file=.env ./node_modules/node-pg-migrate/bin/node-pg-migrate create --migration-file-language ts",
+    "migrate:docker": "node ./node_modules/node-pg-migrate/bin/node-pg-migrate --migration-file-language ts"
   },
   "keywords": [],
   "author": "",
