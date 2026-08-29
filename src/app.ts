@@ -6,6 +6,8 @@ import jwksRouter from "./modules/jwks/jwks.routes.js";
 import helmet from "helmet";
 import cors from "cors";
 import { env } from "./config/env.js";
+import swaggerUi from "swagger-ui-express";
+import { openApiDocument } from "./docs/openapi/index.js";
 
 const app = express();
 
@@ -62,6 +64,7 @@ app.get("/ready", async (_req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/.well-known", jwksRouter);
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.use(errorHandler);
 
