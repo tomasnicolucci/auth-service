@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: auth_test_db
+          POSTGRES_USER: auth_user
+          POSTGRES_PASSWORD: auth_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_user -d auth_test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PORT: 3000
+
+      DATABASE_URL: postgresql://auth_user:auth_password@localhost:5432/auth_test_db
+      REDIS_URL: redis://localhost:6379/1
+
+      JWT_PRIVATE_KEY_PATH: ./keys/private.pem
+      JWT_PUBLIC_KEY_PATH: ./keys/public.pem
+
+      JWT_ISSUER: auth-service
+      JWT_AUDIENCE: backend-services
+
+      ACCESS_TOKEN_TTL: 15m
+      REFRESH_TOKEN_TTL_DAYS: 30
+
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_FROM: no-reply@auth-service.local
+
+      EMAIL_VERIFICATION_TTL_MINUTES: 30
+      PASSWORD_RESET_TTL_MINUTES: 30
+
+      CORS_ORIGIN: http://localhost:5173
+      TRUST_PROXY: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate RSA keys
+        run: npm run generate-keys
+
+      - name: Run database migrations
+        run: npm run migrate:docker up
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
