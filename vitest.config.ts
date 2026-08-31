@@ -8,6 +8,10 @@ export default defineConfig({
       "./src/tests/setup.ts",
     ],
 
+    include: [
+      "src/**/*.test.ts",
+    ],
+
     fileParallelism: false,
 
     maxWorkers: 1,
