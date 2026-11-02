@@ -1,12 +1,42 @@
 import type { Request, Response } from "express";
-import type { LoginInput, LogoutInput, RefreshInput, RegisterInput, VerifyEmailInput, ResendVerificationInput, ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput, } from "./auth.schemas.js";
-import { getUserSessions, loginUser, logoutAllUserSessions, logoutUser, refreshAccessToken, registerUser, revokeUserSession, verifyUserEmail, resendVerificationEmail, forgotPassword, resetPassword, changePassword, } from "./auth.service.js";
+
+import type {
+  LoginInput,
+  LogoutInput,
+  RefreshInput,
+  RegisterInput,
+  VerifyEmailInput,
+  ResendVerificationInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  ChangePasswordInput,
+} from "./auth.schemas.js";
+
+import {
+  getUserSessions,
+  loginUser,
+  logoutAllUserSessions,
+  logoutUser,
+  refreshAccessToken,
+  registerUser,
+  revokeUserSession,
+  verifyUserEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+} from "./auth.service.js";
+
+import { verifyAccessToken } from "../../security/tokens.js";
+import { syncExternalUser } from "../../integrations/service-sync/service-sync.js";
 
 export const register = async (
   req: Request<{}, {}, RegisterInput>,
   res: Response
 ) => {
   const user = await registerUser(req.body);
+
+  await syncExternalUser(user.id);
 
   return res.status(201).json({
     user,
@@ -22,6 +52,8 @@ export const login = async (
     ip: req.ip ?? null,
   });
 
+  await syncExternalUser(result.user.id);
+
   return res.status(200).json(result);
 };
 
@@ -29,9 +61,13 @@ export const refresh = async (
   req: Request<{}, {}, RefreshInput>,
   res: Response
 ) => {
-  const tokens = await refreshAccessToken(
-    req.body
+  const tokens = await refreshAccessToken(req.body);
+
+  const verifiedToken = await verifyAccessToken(
+    tokens.accessToken
   );
+
+  await syncExternalUser(verifiedToken.userId);
 
   return res.status(200).json({
     tokens,

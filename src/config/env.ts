@@ -17,6 +17,16 @@ const passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_TTL_MINUTES);
 const corsOrigin = process.env.CORS_ORIGIN;
 const trustProxy = process.env.TRUST_PROXY === "true";
 
+const serviceSyncEnabled =
+  process.env.SERVICE_SYNC_ENABLED === "true";
+
+const serviceSyncUrl = process.env.SERVICE_SYNC_URL;
+const serviceSyncSecret = process.env.SERVICE_SYNC_SECRET;
+
+const serviceSyncTimeoutMs = Number(
+  process.env.SERVICE_SYNC_TIMEOUT_MS ?? 3000
+);
+
 if (!port) {
   throw new Error("PORT environment variable is required");
 }
@@ -85,6 +95,48 @@ if (!corsOrigin) {
   );
 }
 
+if (
+  process.env.SERVICE_SYNC_ENABLED !== undefined &&
+  !["true", "false"].includes(process.env.SERVICE_SYNC_ENABLED)
+) {
+  throw new Error(
+    "SERVICE_SYNC_ENABLED must be true or false"
+  );
+}
+
+if (serviceSyncEnabled) {
+  if (!serviceSyncUrl) {
+    throw new Error("SERVICE_SYNC_URL is required");
+  }
+
+  try {
+    const url = new URL(serviceSyncUrl);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+  } catch {
+    throw new Error(
+      "SERVICE_SYNC_URL must be a valid HTTP(S) URL"
+    );
+  }
+
+  if (!serviceSyncSecret || serviceSyncSecret.length < 32) {
+    throw new Error(
+      "SERVICE_SYNC_SECRET must contain at least 32 characters"
+    );
+  }
+
+  if (
+    !Number.isInteger(serviceSyncTimeoutMs) ||
+    serviceSyncTimeoutMs <= 0
+  ) {
+    throw new Error(
+      "SERVICE_SYNC_TIMEOUT_MS must be a positive integer"
+    );
+  }
+}
+
 export const env = {
   port,
   databaseUrl,
@@ -102,4 +154,8 @@ export const env = {
   passwordResetTtlMinutes,
   corsOrigin,
   trustProxy,
+  serviceSyncEnabled,
+  serviceSyncUrl,
+  serviceSyncSecret,
+  serviceSyncTimeoutMs,
 };
