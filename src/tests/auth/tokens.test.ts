@@ -73,13 +73,26 @@ describe("Access tokens and JWKS", () => {
         const accessToken =
             loginResponse.body.tokens.accessToken;
 
-        const modifiedToken =
-            accessToken.slice(0, -1) +
-            (
-                accessToken.endsWith("a")
-                    ? "b"
-                    : "a"
-            );
+        const [header, payload, signature] =
+            accessToken.split(".");
+
+        const decodedPayload =
+            decodeJwt(accessToken);
+
+        const modifiedPayload = {
+            ...decodedPayload,
+            email: "modified@example.com",
+        };
+
+        const encodedPayload = Buffer.from(
+            JSON.stringify(modifiedPayload)
+        ).toString("base64url");
+
+        const modifiedToken = [
+            header,
+            encodedPayload,
+            signature,
+        ].join(".");
 
         const response = await request(app)
             .get("/auth/me")
